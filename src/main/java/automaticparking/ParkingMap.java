@@ -18,7 +18,7 @@ public class ParkingMap {
 	
 	public ParkingMap()
 	{
-		for (int i = 0; i < 500; i++)
+		for (int i = 0; i < 499; i++)
 			parkingStatus[i] = SpotStatus.UNKNOWN;
 	}
 }

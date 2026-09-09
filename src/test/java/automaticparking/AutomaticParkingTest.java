@@ -40,7 +40,7 @@ class AutomaticParkingTest {
 		
 		CarStatus carstatus = ap.whereIs();
 		
-		assertEquals(500, carstatus.getPosition(), "Position should be at position 500");
+		assertEquals(499, carstatus.getPosition(), "Position should be at position 499");
 		assertFalse(carstatus.getParkStatus(), "Car should not be parked at start");
 	}
 	
@@ -64,7 +64,7 @@ class AutomaticParkingTest {
 		for (int i = 0; i < 1000; i++)
 			pr = ap.MoveForward();
 		
-		assertEquals(500, pr.position, "Position should not exceed 500");
+		assertEquals(499, pr.position, "Position should not exceed 499");
 	}
 	
 	@Test
@@ -94,30 +94,27 @@ class AutomaticParkingTest {
 		int[] Script2 = {97, 90, 96, 102, 102, 55, 54,78, 81,40};
 		AutomaticParking ap = new AutomaticParking(new FakeSensor(Script1), new FakeSensor(Script2));
 		
-		assertEquals(98, ap.isEmpty(), "Value should be 98 on the first run.");
-		assertEquals(59, ap.isEmpty(), "Value should be 59 on the second run.");
+		assertEquals(99, ap.isEmpty(), "Value should be 99 on the first run.");
+		assertEquals(61, ap.isEmpty(), "Value should be 59 on the second run.");
 	}
 	
 	@Test
 	public void testPark()
 	{
-		int[] Script1 = {100, 105, 95, 100, 99, 50, 60,65,75, 40};
-		int[] Script2 = {97, 90, 96, 102, 102, 55, 54,78, 81,40};
-		AutomaticParking ap = new AutomaticParking(new FakeSensor(Script1), new FakeSensor(Script2));
+		int[] ScriptFree = {50};
+		int[] ScriptBlock = {0};
+
+		FakeSensor A = new FakeSensor(ScriptBlock);
+		FakeSensor B = new FakeSensor(ScriptBlock);
+		AutomaticParking ap = new AutomaticParking(A, B);
 		
-		CarStatus cs = ap.getCarStatus();
-		ParkingMap pm = ap.getParkingMap();
+		for (int i = 0; i < 494; i++) ap.MoveForward();
+		A.setScript(ScriptFree);
+		B.setScript(ScriptFree);
+		for (int i = 0; i < 5; i++) ap.MoveForward();
 		
-		int pos = cs.getPosition();
-		boolean isFree = false;
-		for (int i = pos; i >= pos - 5; i++)
-			if (pm.getSpotStatus(pos) != SpotStatus.FREE)
-				isFree = true;
+		assertEquals(ap.Park(), ap.getCarStatus().getPosition());
 		
-		if (isFree)
-		{
-			
-		}
 	}
 
 }

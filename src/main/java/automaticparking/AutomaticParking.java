@@ -27,7 +27,7 @@ public class AutomaticParking {
 	 Test-cases:
 	 TC1 whereIsTestStart: Tests start, position 0, isParked false
 	 TC2 whereIsTestAfterMoveThreeSteps: After 3x moveForward, position 3, isParked false
-	 TC3 whereIsTestAfterMove1000Steps: After 1000x moveForward, position should still be 500
+	 TC3 whereIsTestAfterMove1000Steps: After 1000x moveForward, position should still be 499
 	*/
 	
 	public CarStatus whereIs() {
@@ -35,28 +35,35 @@ public class AutomaticParking {
 	}
 	
 	/**
-	 Description: Increments the position up to the end of street (500) and returns an object 
+	 Description: Increments the position up to the end of street (499) and returns an object 
 	 containing the current position and previous parking conditions.
 	 
-	 Pre-condition: position is at 0-500
-	 Post-condition: previous position is incremented by one, except at end of street (500)
+	 Pre-condition: position is at 0-499
+	 Post-condition: previous position is incremented by one, except at end of street (499)
 	 Test-cases: 
 	 TC1: MoveForward from start, should be at position 1.
-	 TC2: MoveForward more than end of street, should be at position 500
+	 TC2: MoveForward more than end of street, should be at position 499
 	*/
 	
 	public ParkingRecord MoveForward() {
-		if (carstatus.getPosition() < 500) carstatus.moveForward();
+		int position = carstatus.getPosition();
+		if (position < 499) carstatus.moveForward();
+		
+		if (parkingmap.getSpotStatus(position) == SpotStatus.UNKNOWN)
+			if (isEmpty() >= 50)
+				parkingmap.setSpotStatus(position, SpotStatus.FREE);
+			else
+				parkingmap.setSpotStatus(position, SpotStatus.BLOCKED);
 		
 		return new ParkingRecord(parkingmap, carstatus);
 			
 	}
 	
 	/**
-	 Description: position goes down by one but not further back than start of street, returns an object 
-	 containing the current position and previous parking conditions.
+	 Description: position goes down by one but not further back than start of street, calls isEmpty and sets the parkingstatus based on
+	 the output. returns an object containing the current position and previous parking conditions.
 	 
-	 Pre-condition: position is at 0-500
+	 Pre-condition: position is at 0-499
 	 Post-condition: previous position is decremented by one, up to the start of the street.
 	 Test-cases: 
 	 TC1: MoveBackwardsFromStart, should be at position 0.
@@ -64,8 +71,15 @@ public class AutomaticParking {
 	*/
 	
 	public ParkingRecord MoveBackwards() {
-		if (carstatus.getPosition() > 0) carstatus.moveBackwards();
+		int position = carstatus.getPosition();
+		if (position > 0) carstatus.moveBackwards();
 		
+		if (parkingmap.getSpotStatus(position) == SpotStatus.UNKNOWN)
+			if (isEmpty() >= 50)
+				parkingmap.setSpotStatus(position, SpotStatus.FREE);
+			else
+				parkingmap.setSpotStatus(position, SpotStatus.BLOCKED);
+				
 		return new ParkingRecord(parkingmap, carstatus);
 	}
 	
@@ -91,6 +105,49 @@ public class AutomaticParking {
 	
 	public ParkingMap getParkingMap() {
 		return parkingmap;
+	}
+
+
+	public int getValidParkingPosition() {
+		
+		int counter = 0;
+		
+		for (int i = 0; i < 500; i++)
+		{
+			
+			if (carstatus.getPosition() > i)
+			{
+				if (parkingmap.getSpotStatus(i) == SpotStatus.FREE)
+					counter++;
+				else
+					counter = 0;
+			}
+			else
+			{
+				if (MoveForward().parkingmap.getSpotStatus(i) == SpotStatus.FREE)
+					counter++;
+				else
+					counter = 0;
+			}
+			
+			if (counter == 5) 
+				return i + 1;	
+		}
+		
+		return -1;
+	}
+
+
+	public int Park() {
+		int pos = getValidParkingPosition();
+		if (pos != -1) 
+			{
+
+			for (int i = 0; i < 5; i++) MoveBackwards();
+			carstatus.setParkStatus(true);
+			}
+		return pos;
+		
 	}
 	
 }
