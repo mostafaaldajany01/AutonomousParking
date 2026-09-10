@@ -4,12 +4,12 @@ public class ParkingRecord {
 	public ParkingMap parkingmap;
 	public int position;
 	
-	public ParkingRecord(ParkingMap pm, CarStatus cs)
+	public ParkingRecord(ParkingMap pm, CarInfo cs, int street_length)
 	{
-		parkingmap = new ParkingMap();
-		for (int i = 0; i < 500; i++)
+		parkingmap = new ParkingMap(street_length);
+		for (int i = 0; i < street_length; i++)
 			parkingmap.setSpotStatus(i, pm.getSpotStatus(i));
-		position = cs.getPosition();
+		position = cs.position;
 	}
 	
 }

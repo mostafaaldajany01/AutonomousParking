@@ -4,21 +4,22 @@ import automaticparking.ParkingMap.SpotStatus;
 
 public class ParkingMap {
 	public enum SpotStatus { UNKNOWN, BLOCKED, FREE }
-	private SpotStatus[] parkingStatus = new SpotStatus[500];
+	private SpotStatus[] parkingstatus;
 	
 	public SpotStatus getSpotStatus(int position) throws IndexOutOfBoundsException
 	{
-		return parkingStatus[position];
+		return parkingstatus[position];
 	}
 	
 	public void setSpotStatus(int position, SpotStatus st) throws IndexOutOfBoundsException
 	{
-		parkingStatus[position] = st;
+		parkingstatus[position] = st;
 	}
 	
-	public ParkingMap()
+	public ParkingMap(int street_length)
 	{
-		for (int i = 0; i < 499; i++)
-			parkingStatus[i] = SpotStatus.UNKNOWN;
+		parkingstatus = new SpotStatus[street_length];
+		for (int i = 0; i < street_length; i++)
+			parkingstatus[i] = SpotStatus.UNKNOWN;
 	}
 }
