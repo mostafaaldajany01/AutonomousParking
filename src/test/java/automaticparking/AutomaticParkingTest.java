@@ -8,9 +8,11 @@ import automaticparking.ParkingMap.SpotStatus;
 
 class AutomaticParkingTest {
 
+	private static final int[] CLEAN = {100};
+
 	@Test
 	public void WhereIsTestStart() {
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 		
 		CarInfo CarInfo = ap.whereIs();
 		
@@ -20,7 +22,7 @@ class AutomaticParkingTest {
 	
 	@Test
 	public void WhereIsTestAfterMoveThreeSteps() {
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 
 		ap.MoveForward();
 		ap.MoveForward();
@@ -33,7 +35,7 @@ class AutomaticParkingTest {
 	
 	@Test
 	public void WhereIsTestAfterMove1000Steps() {
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 		
 		for (int i = 0; i < 1000; i++)
 			ap.MoveForward();
@@ -59,7 +61,7 @@ class AutomaticParkingTest {
 	@Test
 	public void MoveForwardTestOneStepFromStart()
 	{
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 		
 		ParkingRecord pr = ap.MoveForward();
 		
@@ -69,7 +71,7 @@ class AutomaticParkingTest {
 	@Test
 	public void MoveForwardMoreThanStreetLength()
 	{
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 		
 		ParkingRecord pr = ap.MoveForward();
 		
@@ -94,31 +96,31 @@ class AutomaticParkingTest {
 	}
 	
 	@Test
-	public void MoveForwardRecordsFreeAt50()
+	public void MoveForwardRecordsFreeAt100()
 	{
-		int[] reading = {50};
+		int[] reading = {100};
 		AutomaticParking ap = new AutomaticParking(new FakeSensor(reading), new FakeSensor(reading));
 
 		ParkingRecord pr = ap.MoveForward();
 
-		assertEquals(SpotStatus.FREE, pr.parkingmap.getSpotStatus(0), "50 cm counts as FREE");
+		assertEquals(SpotStatus.FREE, pr.parkingmap.getSpotStatus(0), "100 cm counts as FREE");
 	}
 	
 	@Test
-	public void MoveForwardRecordsBlockedAt49()
+	public void MoveForwardRecordsBlockedAt99()
 	{
-		int[] reading = {49};
+		int[] reading = {99};
 		AutomaticParking ap = new AutomaticParking(new FakeSensor(reading), new FakeSensor(reading));
 
 		ParkingRecord pr = ap.MoveForward();
 
-		assertEquals(SpotStatus.BLOCKED, pr.parkingmap.getSpotStatus(0), "49 cm counts as BLOCKED");
+		assertEquals(SpotStatus.BLOCKED, pr.parkingmap.getSpotStatus(0), "99 cm counts as BLOCKED");
 	}
 	
 	@Test
 	public void MoveBackwardsFromStart()
 	{
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 		
 		ParkingRecord pr = ap.MoveBackwards();
 		assertEquals(0, pr.position, "Position should not go below 0");
@@ -127,7 +129,7 @@ class AutomaticParkingTest {
 	@Test
 	public void MoveBackwardsFromPositionFive()
 	{
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 		
 		for (int i = 0; i < 5; i++) { ap.MoveForward(); }
 		
@@ -138,9 +140,9 @@ class AutomaticParkingTest {
 	@Test
 	public void MoveBackwardsFromEnd()
 	{
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 
-		for (int i = 0; i < 1000; i++) ap.MoveForward();   // car at 495
+		for (int i = 0; i < 1000; i++) ap.MoveForward();
 		ParkingRecord pr = ap.MoveBackwards();
 
 		assertEquals(494, pr.position, "Position should be 494 after one step back from the end");
@@ -155,9 +157,9 @@ class AutomaticParkingTest {
 		FakeSensor B = new FakeSensor(blocked);
 		AutomaticParking ap = new AutomaticParking(A, B);
 
-		for (int i = 0; i < 10; i++) ap.MoveForward();     // spots 0-9 blocked
+		for (int i = 0; i < 10; i++) ap.MoveForward();
 		A.setScript(free); B.setScript(free);
-		ap.Park();                                         // parks at 10
+		ap.Park();
 		ap.MoveBackwards();
 
 		assertEquals(10, ap.whereIs().position, "A parked car should not move");
@@ -179,8 +181,8 @@ class AutomaticParkingTest {
 	@Test
 	public void isEmptyNoisySensorA()
 	{
-		int[] noisy = {40, 100, 65, 40, 70};      // avg 63, 0.292 error per call
-		int[] clean = {150, 150, 150, 150, 150};  // error 0
+		int[] noisy = {40, 100, 65, 40, 70};
+		int[] clean = {150, 150, 150, 150, 150};
 		AutomaticParking ap = new AutomaticParking(new FakeSensor(noisy), new FakeSensor(clean));
 
 		assertEquals(63,  ap.isEmpty(), "error 0.29, still trusted");
@@ -193,8 +195,8 @@ class AutomaticParkingTest {
 	@Test
 	public void isEmptyNoisySensorB()
 	{
-		int[] clean = {150, 150, 150, 150, 150};  // error 0
-		int[] noisy = {40, 100, 65, 40, 70};      // avg 63, 0.292 error per call
+		int[] clean = {150, 150, 150, 150, 150};
+		int[] noisy = {40, 100, 65, 40, 70};
 		AutomaticParking ap = new AutomaticParking(new FakeSensor(clean), new FakeSensor(noisy));
 
 		assertEquals(63,  ap.isEmpty(), "error 0.29, B still trusted -> min(150,63)");
@@ -207,7 +209,7 @@ class AutomaticParkingTest {
 	@Test
 	public void isEmptyBothSensorsNoisy()
 	{
-		int[] noisy = {40, 100, 65, 40, 70};      // avg 63, 0.292 error per call
+		int[] noisy = {40, 100, 65, 40, 70};
 		AutomaticParking ap = new AutomaticParking(new FakeSensor(noisy), new FakeSensor(noisy));
 
 		assertEquals(63, ap.isEmpty(), "both trusted");
@@ -220,7 +222,7 @@ class AutomaticParkingTest {
 	@Test
 	public void ParkTest()
 	{
-		int[] ScriptFree = {50};
+		int[] ScriptFree = {100};
 		int[] ScriptBlock = {0};
 
 		FakeSensor A = new FakeSensor(ScriptBlock);
@@ -231,8 +233,8 @@ class AutomaticParkingTest {
 		A.setScript(ScriptFree);
 		B.setScript(ScriptFree);
 		ap.Park();
-		assertEquals(10, ap.getCarInfo().position);
-		assertTrue(ap.getCarInfo().isParked);
+		assertEquals(10, ap.whereIs().position);
+		assertTrue(ap.whereIs().isParked);
 	}
 	
 	@Test
@@ -244,9 +246,9 @@ class AutomaticParkingTest {
 		FakeSensor B = new FakeSensor(free);
 		AutomaticParking ap = new AutomaticParking(A, B);
 
-		for (int i = 0; i < 10; i++) ap.MoveForward();     // spots 0-9 free
+		for (int i = 0; i < 10; i++) ap.MoveForward();
 		A.setScript(blocked); B.setScript(blocked);
-		for (int i = 0; i < 190; i++) ap.MoveForward();    // spots 10-199 blocked, car at 200
+		for (int i = 0; i < 190; i++) ap.MoveForward();
 		A.setScript(free); B.setScript(free);
 
 		ap.Park();
@@ -276,10 +278,10 @@ class AutomaticParkingTest {
 		FakeSensor B = new FakeSensor(blocked);
 		AutomaticParking ap = new AutomaticParking(A, B);
 
-		for (int i = 0; i < 10; i++) ap.MoveForward();     // spots 0-9 blocked
+		for (int i = 0; i < 10; i++) ap.MoveForward();
 		A.setScript(free); B.setScript(free);
-		ap.Park();                                         // parks at 10
-		ap.Park();                                         // second call should do nothing
+		ap.Park();
+		ap.Park();
 
 		assertEquals(10, ap.whereIs().position, "Second Park should not move the car");
 		assertTrue(ap.whereIs().isParked);
@@ -291,7 +293,7 @@ class AutomaticParkingTest {
 		int[] free = {150};
 		AutomaticParking ap = new AutomaticParking(new FakeSensor(free), new FakeSensor(free));
 
-		ap.Park();                                         // parks at 0
+		ap.Park();
 		ap.UnPark();
 
 		assertEquals(5, ap.whereIs().position, "Car should move 5 m forward out of the spot");
@@ -301,11 +303,56 @@ class AutomaticParkingTest {
 	@Test
 	public void UnParkWhenNotParked()
 	{
-		AutomaticParking ap = new AutomaticParking(new SimulatedSensor(), new SimulatedSensor());
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(CLEAN), new FakeSensor(CLEAN));
 
 		ap.UnPark();
 
 		assertEquals(0, ap.whereIs().position, "UnPark on an unparked car should not move it");
 		assertFalse(ap.whereIs().isParked);
+	}
+
+	@Test
+	public void MoveForwardAccumulatesMap()
+	{
+		int[] free = {150};
+		AutomaticParking ap = new AutomaticParking(new FakeSensor(free), new FakeSensor(free));
+
+		ap.MoveForward();
+		ap.MoveForward();
+		ParkingRecord pr = ap.MoveForward();
+
+		assertEquals(3, pr.position, "Three steps should put the car at 3");
+		assertEquals(SpotStatus.FREE, pr.parkingmap.getSpotStatus(0), "Metre 0 was detected on the first move");
+		assertEquals(SpotStatus.FREE, pr.parkingmap.getSpotStatus(1), "Metre 1 was detected on the second move");
+		assertEquals(SpotStatus.FREE, pr.parkingmap.getSpotStatus(2), "Metre 2 was detected on the third move");
+		assertEquals(SpotStatus.UNKNOWN, pr.parkingmap.getSpotStatus(3), "The metre under the car has not been driven past yet");
+	}
+
+	@Test
+	public void MoveBackwardsKeepsAlreadyRecordedSpot()
+	{
+		int[] blocked = {0};
+		int[] free = {150};
+		FakeSensor A = new FakeSensor(blocked);
+		FakeSensor B = new FakeSensor(blocked);
+		AutomaticParking ap = new AutomaticParking(A, B);
+
+		for (int i = 0; i < 3; i++) ap.MoveForward();
+		A.setScript(free); B.setScript(free);
+		ParkingRecord pr = ap.MoveBackwards();
+
+		assertEquals(2, pr.position, "One step back from 3 is 2");
+		assertEquals(SpotStatus.BLOCKED, pr.parkingmap.getSpotStatus(2), "An already detected metre is never overwritten");
+	}
+
+	@Test
+	public void SimulatedSensorStaysInRange()
+	{
+		SimulatedSensor s = new SimulatedSensor();
+
+		for (int i = 0; i < 1000; i++) {
+			int reading = s.read();
+			assertTrue(reading >= 0 && reading <= 200, "Reading outside the 0-200 cm range: " + reading);
+		}
 	}
 }
