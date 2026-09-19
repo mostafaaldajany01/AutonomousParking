@@ -20,4 +20,3 @@ public class FakeSensor implements Sensor{
 		this.values = values;
 	}
 }
-	
