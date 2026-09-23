@@ -8,10 +8,4 @@ public class CarInfo {
 		position = 0;
 		isParked = false;
 	}
-
-	// For copy
-	public CarInfo(CarInfo other) {
-		position = other.position;
-		isParked = other.isParked;
-	}
 }

@@ -6,22 +6,24 @@ public class AutomaticParking {
 	private Sensor sensor_a;
 	private Sensor sensor_b;
 
+	private Actuator actuator;
+
 	private double sensor_a_error = 0.0;
 	private double sensor_b_error = 0.0;
 
-	private CarInfo carinfo;  // WhereIsTestStart: new car at position 0, not parked
 	private ParkingMap parkingmap;
-
+	private boolean isParked;
 	private static final int STREET_LENGTH = 500;
 	private static final int CAR_LENGTH = 5;
 
 	private static final int SENSOR_SIM_AMOUNT = 5;
 
-	public AutomaticParking(Sensor A, Sensor B) {
+	public AutomaticParking(Sensor A, Sensor B, Actuator actuator) {
 		this.sensor_a = A;
 		this.sensor_b = B;
+		this.actuator = actuator;
 
-		carinfo = new CarInfo();
+		isParked = false;
 		parkingmap = new ParkingMap(STREET_LENGTH);
 	}
 
@@ -34,7 +36,10 @@ public class AutomaticParking {
 	 * WhereIsTestAfterMove1000Steps, WhereIsAfterPark
 	 */
 	public CarInfo whereIs() {
-		return new CarInfo(carinfo); // WhereIsTestStart: return position and parked status
+		CarInfo info = new CarInfo();
+		info.position = actuator.getPosition();
+		info.isParked = isParked;
+		return info;
 	}
 
 	/**
@@ -65,15 +70,13 @@ public class AutomaticParking {
 	 * MoveForwardKeepsAlreadyRecordedSpot
 	 */
 	public ParkingRecord MoveForward() {
-		int position = carinfo.position; // MoveForwardRecordsFreeAt100: remember the old position, it is the meter to measure
-		boolean moved = position < STREET_LENGTH - CAR_LENGTH; // MoveForwardMoreThanStreetLength: the car cannot go past 495
-
-		if (moved && !carinfo.isParked) { // MoveForwardWhileParkedDoesNothing: a parked car does not move
-			carinfo.position++; // MoveForwardTestOneStepFromStart: one step forward is 1 m
-			recordSpot(position); // MoveForwardRecordsFreeAt100: measure the meter the car drove across
+		if (!isParked) {
+			int oldPos = actuator.getPosition();
+			int newPos = actuator.moveForward();
+			if (newPos != oldPos)       // the car actually moved
+				recordSpot(oldPos);
 		}
-
-		return new ParkingRecord(parkingmap, carinfo); // MoveForwardTestOneStepFromStart: return the position and the map
+		return new ParkingRecord(parkingmap, whereIs());
 	}
 
 	/**
@@ -90,27 +93,29 @@ public class AutomaticParking {
 	 * MoveBackwardsKeepsAlreadyRecordedSpot
 	 */
 	public ParkingRecord MoveBackwards() {
-		int position = carinfo.position; // MoveBackwardsFromStart: remember the position to check if the car is at the start
-		boolean moved = position > 0; // MoveBackwardsFromStart: the car cannot go behind position 0
-
-		if (moved && !carinfo.isParked) { // MoveBackwardsWhileParkedDoesNothing: a parked car does not move
-			carinfo.position--; // MoveBackwardsFromPositionFive: one step backward is 1 m
-			recordSpot(carinfo.position); // MoveBackwardsKeepsAlreadyRecordedSpot: measure the meter behind, it is already measured so the map is kept
+		if (!isParked) {
+			int oldPos = actuator.getPosition();
+			int newPos = actuator.moveBackward();
+			if (newPos != oldPos)       // the car actually moved
+				recordSpot(newPos);     // backwards: record the meter the car is now over
 		}
-
-		return new ParkingRecord(parkingmap, carinfo); // MoveBackwardsFromStart: return the position and the map
+		return new ParkingRecord(parkingmap, whereIs());
 	}
 	
 	private double calculateAvgError(int[] arr, float avg)
 	{
-		if (avg == 0) return 0; // isEmptyTest: all readings are 0, the sensor is not noisy, and we cannot divide by 0
+		if (arr.length == 0)
+			return 0;
 
 		double error_final = 0; // isEmptyNoisySensorA: collects the differences
 		for (int i = 0; i < arr.length; i++) // isEmptyNoisySensorA: check every reading
 		{
-			error_final += Math.abs(((arr[i] / avg) - 1)); // isEmptyNoisySensorA: how far this reading is from the mean, as a part of the mean
+			if (arr[i] < 0 || arr[i] > 200)
+				return 100; // turn off if broken sensor.
+			else
+				error_final += Math.abs(((arr[i] / avg) - 1)); // isEmptyNoisySensorA: how far this reading is from the mean, as a part of the mean
 		}
-		return error_final / arr.length; // isEmptyNoisySensorA: the mean difference is the noise of this call
+		return avg != 0 ? error_final / arr.length : 0;
 	}
 
 	/**
@@ -145,8 +150,8 @@ public class AutomaticParking {
 		if (e_b > 0.075) // isEmptyTest: a small error is normal and is not counted
 			sensor_b_error += e_b; // isEmptyNoisySensorB: a noisy call is added to the total error
 
-		boolean a_ok = sensor_a_error < 1.0; // isEmptyNoisySensorA: a sensor with total error 1.0 or more is ignored
-		boolean b_ok = sensor_b_error < 1.0; // isEmptyNoisySensorB: a sensor with total error 1.0 or more is ignored
+		boolean a_ok = sensor_a_error < 1.0 && avg_a >= 0 && avg_a <= 200; // isEmptyNoisySensorA: a sensor with total error 1.0 or more is ignored
+		boolean b_ok = sensor_b_error < 1.0 && avg_b >= 0 && avg_b <= 200; // isEmptyNoisySensorB: a sensor with total error 1.0 or more is ignored
 
 		if (a_ok && b_ok) return (int)Math.min(avg_a, avg_b); // isEmptyTest: return the distance to the nearest object
 		if (a_ok) return (int)avg_a; // isEmptyNoisySensorB: only sensor A can be trusted
@@ -158,7 +163,7 @@ public class AutomaticParking {
 		int counter = 0; // ParkTest: counts how many free meters in a row have been found
 
 		for (int i = 0; i < STREET_LENGTH - CAR_LENGTH; i++) { // ParkNoFreeStretch: search the whole street, the last place starts at 490
-			if (carinfo.position <= i) // ParkUsesFreeStretchBehindCar: meters behind the car are already measured
+			if (whereIs().position <= i) // ParkUsesFreeStretchBehindCar: meters behind the car are already measured
 				MoveForward(); // ParkTest: drive forward to measure new meters
 
 			if (parkingmap.getSpotStatus(i) == SpotStatus.FREE) // ParkTest: a free meter is part of a parking place
@@ -184,19 +189,56 @@ public class AutomaticParking {
 	 * Test-cases: ParkTest, ParkUsesFreeStretchBehindCar, ParkNoFreeStretch, ParkWhenAlreadyParked,
 	 * ParkFourFreeMetersIsNotEnough, ParkAtTheEndOfTheStreet
 	 */
-	 
+
+	/** A place is a perfect fit if it is exactly CAR_LENGTH long and closed by a BLOCKED meter. */
+	private boolean isPerfectFit(int start) {
+		int after = start + CAR_LENGTH;
+		return after < parkingmap.length()
+				&& parkingmap.getSpotStatus(after) == SpotStatus.BLOCKED;
+	}
+
 	public void Park() {
-		if (carinfo.isParked) return; // ParkWhenAlreadyParked: a parked car does not park again
+		if (isParked) return;
 
-		int pos = getValidParkingPosition(); // ParkTest: search the street for a parking place
-		if (pos == -1) return; // ParkNoFreeStretch: no parking place was found, the car stays at 495
-
-		while (carinfo.position > pos) // ParkUsesFreeStretchBehindCar: drive back if the place is behind the car
-			MoveBackwards();
-		while (carinfo.position < pos) // ParkTest: drive forward if the place is in front of the car
+		int pos = findSmallestFreeStretch();
+		while (pos == -1 || !isPerfectFit(pos)) {
+			int before = actuator.getPosition();
 			MoveForward();
+			if (actuator.getPosition() == before)
+				break;
+			pos = findSmallestFreeStretch();
+		}
 
-		carinfo.isParked = true; // ParkTest: the car is now parked
+		if (pos == -1) return;
+
+		while (actuator.getPosition() > pos)
+			MoveBackwards();
+
+		isParked = true;
+	}
+
+	private int findSmallestFreeStretch() {
+		int bestStart = -1;
+		int bestLength = Integer.MAX_VALUE;
+		int runStart = 0;
+		int runLength = 0;
+
+		for (int i = 0; i <= parkingmap.length(); i++) {
+			boolean free = i < parkingmap.length()
+					&& parkingmap.getSpotStatus(i) == SpotStatus.FREE;
+
+			if (free) {
+				if (runLength == 0) runStart = i;
+				runLength++;
+			} else {
+				if (runLength >= CAR_LENGTH && runLength < bestLength) {
+					bestLength = runLength;
+					bestStart = runStart;
+				}
+				runLength = 0;
+			}
+		}
+		return bestStart;
 	}
 
 	/**
@@ -208,9 +250,9 @@ public class AutomaticParking {
 	 */
 	public void UnPark()
 	{
-		if (!carinfo.isParked) return; // UnParkWhenNotParked: nothing happens if the car is not parked
+		if (!isParked) return; // UnParkWhenNotParked: nothing happens if the car is not parked
 
-		carinfo.isParked = false; // UnParkMovesOut: the car is no longer parked, this must be set first so that MoveForward works
+		isParked = false; // UnParkMovesOut: the car is no longer parked, this must be set first so that MoveForward works
 		for (int i = 0; i < CAR_LENGTH; i++) MoveForward(); // UnParkMovesOut: the car moves 5 m forward, out of the parking place
 	}
 }
