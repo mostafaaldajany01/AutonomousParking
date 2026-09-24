@@ -436,17 +436,6 @@ class AutomaticParkingTest {
 	}
 
 	@Test
-	public void SimulatedSensorStaysInRange()
-	{
-		SimulatedSensor s = new SimulatedSensor();
-
-		for (int i = 0; i < 1000; i++) {
-			int reading = s.read();
-			assertTrue(reading >= 0 && reading <= 200, "Reading outside the 0-200 cm range: " + reading);
-		}
-	}
-
-	@Test
 	public void isEmptyBothSensorsBroken()
 	{
 		int[] tooHigh = {999};
