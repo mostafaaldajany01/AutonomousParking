@@ -51,8 +51,8 @@ public class AutomaticParking {
 	 * MoveBackwardsKeepsAlreadyRecordedSpot
 	 */
 	private void recordSpot(int index) {
-		if (parkingmap.getSpotStatus(index) == SpotStatus.UNKNOWN) // MoveForwardKeepsAlreadyRecordedSpot: a measured meter is never overwritten
-			parkingmap.setSpotStatus(index, isEmpty() >= 100 ? SpotStatus.FREE : SpotStatus.BLOCKED); // MoveForwardRecordsFreeAt100 and MoveForwardRecordsBlockedAt99: 100 cm or more is FREE, less is BLOCKED
+		if (parkingmap.getSpotStatus(index) == SpotStatus.UNKNOWN)
+			parkingmap.setSpotStatus(index, isEmpty() >= 100 ? SpotStatus.FREE : SpotStatus.BLOCKED);
 	}
 	/**
 	 * Description: Moves the car 1 m forward, reads the sensors through
@@ -73,7 +73,7 @@ public class AutomaticParking {
 		if (!isParked) {
 			int oldPos = actuator.getPosition();
 			int newPos = actuator.moveForward();
-			if (newPos != oldPos)       // the car actually moved
+			if (newPos != oldPos)
 				recordSpot(oldPos);
 		}
 		return new ParkingRecord(parkingmap, whereIs());
@@ -96,24 +96,21 @@ public class AutomaticParking {
 		if (!isParked) {
 			int oldPos = actuator.getPosition();
 			int newPos = actuator.moveBackward();
-			if (newPos != oldPos)       // the car actually moved
-				recordSpot(newPos);     // backwards: record the meter the car is now over
+			if (newPos != oldPos)
+				recordSpot(newPos);
 		}
 		return new ParkingRecord(parkingmap, whereIs());
 	}
 	
 	private double calculateAvgError(int[] arr, float avg)
 	{
-		if (arr.length == 0)
-			return 0;
-
-		double error_final = 0; // isEmptyNoisySensorA: collects the differences
-		for (int i = 0; i < arr.length; i++) // isEmptyNoisySensorA: check every reading
+		double error_final = 0;
+		for (int i = 0; i < arr.length; i++)
 		{
 			if (arr[i] < 0 || arr[i] > 200)
-				return 100; // turn off if broken sensor.
+				return 100;
 			else
-				error_final += Math.abs(((arr[i] / avg) - 1)); // isEmptyNoisySensorA: how far this reading is from the mean, as a part of the mean
+				error_final += Math.abs(((arr[i] / avg) - 1));
 		}
 		return avg != 0 ? error_final / arr.length : 0;
 	}
@@ -131,51 +128,32 @@ public class AutomaticParking {
 	 * isEmptyNoisySensorB, isEmptyBothSensorsNoisy, isEmptyNoisySensorARetiresOnFifthCall
 	 */
 	public int isEmpty() {
-		int[] a_values = new int[SENSOR_SIM_AMOUNT], b_values = new int[SENSOR_SIM_AMOUNT]; // isEmptyNoisySensorA: the readings are needed to measure the noise
-		int sum_a = 0, sum_b = 0; // isEmptyTest: sums are needed for the means
+		int[] a_values = new int[SENSOR_SIM_AMOUNT], b_values = new int[SENSOR_SIM_AMOUNT];
+		int sum_a = 0, sum_b = 0;
 
-		for (int i = 0; i < SENSOR_SIM_AMOUNT; i++) { // isEmptyTest: each sensor is read 5 times, as the requirement says
-			sum_a += a_values[i] = sensor_a.read(); // isEmptyTest: read sensor A and add to its sum
-			sum_b += b_values[i] = sensor_b.read(); // isEmptyTest: read sensor B and add to its sum
+		for (int i = 0; i < SENSOR_SIM_AMOUNT; i++) {
+			sum_a += a_values[i] = sensor_a.read();
+			sum_b += b_values[i] = sensor_b.read();
 		}
 
-		float avg_a = (float) sum_a / SENSOR_SIM_AMOUNT; // isEmptyTest: the mean filters the noise of sensor A
-		float avg_b = (float) sum_b / SENSOR_SIM_AMOUNT; // isEmptyTest: the mean filters the noise of sensor B
+		float avg_a = (float) sum_a / SENSOR_SIM_AMOUNT;
+		float avg_b = (float) sum_b / SENSOR_SIM_AMOUNT;
 
-		double e_a = calculateAvgError(a_values, avg_a); // isEmptyNoisySensorA: measure how noisy this call was
-		double e_b = calculateAvgError(b_values, avg_b); // isEmptyNoisySensorB: measure how noisy this call was
+		double e_a = calculateAvgError(a_values, avg_a);
+		double e_b = calculateAvgError(b_values, avg_b);
 
-		if (e_a > 0.075) // isEmptyTest: a small error is normal and is not counted
-			sensor_a_error += e_a; // isEmptyNoisySensorA: a noisy call is added to the total error
-		if (e_b > 0.075) // isEmptyTest: a small error is normal and is not counted
-			sensor_b_error += e_b; // isEmptyNoisySensorB: a noisy call is added to the total error
+		if (e_a > 0.075)
+			sensor_a_error += e_a;
+		if (e_b > 0.075)
+			sensor_b_error += e_b;
 
-		boolean a_ok = sensor_a_error < 1.0 && avg_a >= 0 && avg_a <= 200; // isEmptyNoisySensorA: a sensor with total error 1.0 or more is ignored
-		boolean b_ok = sensor_b_error < 1.0 && avg_b >= 0 && avg_b <= 200; // isEmptyNoisySensorB: a sensor with total error 1.0 or more is ignored
+		boolean a_ok = sensor_a_error < 1.0;
+		boolean b_ok = sensor_b_error < 1.0;
 
-		if (a_ok && b_ok) return (int)Math.min(avg_a, avg_b); // isEmptyTest: return the distance to the nearest object
-		if (a_ok) return (int)avg_a; // isEmptyNoisySensorB: only sensor A can be trusted
-		if (b_ok) return (int)avg_b; // isEmptyNoisySensorA: only sensor B can be trusted
-		return 0; // isEmptyBothSensorsNoisy: no sensor can be trusted, 0 cm means BLOCKED
-	}
-
-	private int getValidParkingPosition() {
-		int counter = 0; // ParkTest: counts how many free meters in a row have been found
-
-		for (int i = 0; i < STREET_LENGTH - CAR_LENGTH; i++) { // ParkNoFreeStretch: search the whole street, the last place starts at 490
-			if (whereIs().position <= i) // ParkUsesFreeStretchBehindCar: meters behind the car are already measured
-				MoveForward(); // ParkTest: drive forward to measure new meters
-
-			if (parkingmap.getSpotStatus(i) == SpotStatus.FREE) // ParkTest: a free meter is part of a parking place
-				counter++; // ParkTest: count this free meter
-			else
-				counter = 0; // ParkFourFreeMetersIsNotEnough: a blocked meter resets the count
-
-			if (counter == CAR_LENGTH) // ParkTest: 5 free meters in a row is a parking place
-				return i - CAR_LENGTH + 1; // ParkAtTheEndOfTheStreet: return the first meter of the place
-		}
-
-		return -1; // ParkNoFreeStretch: no parking place was found on the street
+		if (a_ok && b_ok) return (int)Math.min(avg_a, avg_b);
+		if (a_ok) return (int)avg_a;
+		if (b_ok) return (int)avg_b;
+		return 0;
 	}
 
 	/**
@@ -190,17 +168,15 @@ public class AutomaticParking {
 	 * ParkFourFreeMetersIsNotEnough, ParkAtTheEndOfTheStreet
 	 */
 
-	/** A place is a perfect fit if it is exactly CAR_LENGTH long and closed by a BLOCKED meter. */
 	private boolean isPerfectFit(int start) {
-		int after = start + CAR_LENGTH;
-		return after < parkingmap.length()
-				&& parkingmap.getSpotStatus(after) == SpotStatus.BLOCKED;
+		int posAfter = start + CAR_LENGTH;
+		return posAfter < parkingmap.length() && parkingmap.getSpotStatus(posAfter) == SpotStatus.BLOCKED;
 	}
-
 	public void Park() {
 		if (isParked) return;
 
 		int pos = findSmallestFreeStretch();
+
 		while (pos == -1 || !isPerfectFit(pos)) {
 			int before = actuator.getPosition();
 			MoveForward();
@@ -213,6 +189,8 @@ public class AutomaticParking {
 
 		while (actuator.getPosition() > pos)
 			MoveBackwards();
+		while (actuator.getPosition() < pos)
+			MoveForward();
 
 		isParked = true;
 	}
@@ -224,6 +202,7 @@ public class AutomaticParking {
 		int runLength = 0;
 
 		for (int i = 0; i <= parkingmap.length(); i++) {
+
 			boolean free = i < parkingmap.length()
 					&& parkingmap.getSpotStatus(i) == SpotStatus.FREE;
 
@@ -238,6 +217,7 @@ public class AutomaticParking {
 				runLength = 0;
 			}
 		}
+
 		return bestStart;
 	}
 
@@ -250,9 +230,9 @@ public class AutomaticParking {
 	 */
 	public void UnPark()
 	{
-		if (!isParked) return; // UnParkWhenNotParked: nothing happens if the car is not parked
+		if (!isParked) return;
 
-		isParked = false; // UnParkMovesOut: the car is no longer parked, this must be set first so that MoveForward works
-		for (int i = 0; i < CAR_LENGTH; i++) MoveForward(); // UnParkMovesOut: the car moves 5 m forward, out of the parking place
+		isParked = false;
+		for (int i = 0; i < CAR_LENGTH; i++) MoveForward();
 	}
 }
